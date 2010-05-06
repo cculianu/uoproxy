@@ -63,7 +63,7 @@ struct linked_server {
     /** Razor_workaround support here: we save the charlist until
         the client says gamelogin, at which point we turn compression on in our
         emulated server and send a charlist. */
-    bool expecting_reconnect, got_gamelogin;    
+    bool expecting_reconnect, got_gamelogin;
     struct uo_packet_simple_character_list *enqueued_charlist;
     
     bool is_zombie; /**< zombie handling */

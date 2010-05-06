@@ -432,32 +432,48 @@ handle_game_login(struct linked_server *ls,
            So we apply the zombie-lookup only if the remote UO client actually 
            did bother to reconnet to us. */
         if (!ls->connection->client.client) {  
-            struct connection *reuse_conn = NULL;
+            struct connection *reuse_conn = NULL, *conn_candidate = NULL;
             struct instance *instance = ls->connection->instance;
-            struct linked_server *ls2;
+            struct linked_server *ls2, *old_ls = NULL;
             
             /* this should only happen in redirect mode.. so look for the 
                correct zombie so that we can re-use its connection to the UO
-               server. */
+               server.  Note that some clients (Gemuo!) don't close the old 
+               connection on redirect, so we have to support that too. */
+            
+            /* First look for all connections that have zombie linked-servers
+               that match our username, password, and auth_id */
             list_for_each_entry(c, &instance->connections, siblings) {
-                list_for_each_entry(ls2, &c->servers, siblings) {            
-                    if (ls2->is_zombie
-                        && ls2->auth_id == p->auth_id
-                        && !strcmp(c->username, p->username) 
-                        && !strcmp(c->password, p->password)) {
-                        /* found it! Eureka! */     
-                        reuse_conn = c;
-                        ls2->expecting_reconnect = false;
-                        // copy over charlist (if any)..
-                        ls->enqueued_charlist = ls2->enqueued_charlist;
-                        ls2->enqueued_charlist = NULL;
-                        was_attach = ls2->attaching;
-                        ls2->attaching = false;
-                        break;
+                if (c->client.client) {
+                    list_for_each_entry(ls2, &c->servers, siblings) {            
+                        if (ls2->auth_id == p->auth_id
+                            && !strcmp(c->username, p->username) 
+                            && !strcmp(c->password, p->password)) {
+                            conn_candidate = c;
+                            old_ls = ls2;                            
+                            if (ls2->is_zombie) {
+                                /* found it! Eureka! */     
+                                reuse_conn = c;
+                                break;
+                            }
+                        }
                     }
                 }
                 if (reuse_conn) break;
             }
+            if (!reuse_conn) 
+                /* nope, fail!  probably the client didn't close the old connection, tsk tsk! */
+                reuse_conn = conn_candidate;
+            if (old_ls) {
+                old_ls->expecting_reconnect = false;
+                old_ls->is_zombie = true; ///< workaround for buggy gemuo -- zombify old connection since gemuo forgets to close it
+                // copy over charlist (if any)..
+                ls->enqueued_charlist = old_ls->enqueued_charlist;
+                old_ls->enqueued_charlist = NULL;
+                was_attach = old_ls->attaching;
+                old_ls->attaching = false;
+            }
+            
             if (reuse_conn) {
                 c = ls->connection;
                 /* remove the object from the old connection */
