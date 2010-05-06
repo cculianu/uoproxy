@@ -67,8 +67,11 @@ struct linked_server {
     struct uo_packet_simple_character_list *enqueued_charlist;
     
     bool is_zombie; /**< zombie handling */
-    struct event zombie_timeout; /**< zombies time out and auto-reap themselves after 5 seconds */
-    uint32_t auth_id; /**< unique identifier for this linked_server used in redirect handling to locate the previous linked_server */
+    struct event zombie_timeout; /**< zombies time out and auto-reap themselves 
+                                      after 5 seconds using this timer */
+    uint32_t auth_id; /**< unique identifier for this linked_server used in 
+                           redirect handling to locate the zombied 
+                           linked_server */
 };
 
 struct connection_walk_item {

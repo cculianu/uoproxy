@@ -424,19 +424,21 @@ handle_game_login(struct linked_server *ls,
         
         log(2,"game login from client\n");
         
-        /* I have observed the razor client ignoring the redirect if the IP address differs
-           from what it connected to.  (I guess this is a bug in RunUO & Razor).
-           In that case it does a gamelogin on the old connection. 
-           So we do this zombie stuff where we look to re-use an old connection object
-           if they did an actual reconnect ONLY.
-         */
+        /* I have observed the razor client ignoring the redirect if the IP 
+           address differs from what it connected to.  (I guess this is a bug in 
+           RunUO & Razor).  In that case it does a gamelogin on the old 
+           linked_server without reconnecting to us. 
+         
+           So we apply the zombie-lookup only if the remote UO client actually 
+           did bother to reconnet to us. */
         if (!ls->connection->client.client) {  
             struct connection *reuse_conn = NULL;
             struct instance *instance = ls->connection->instance;
             struct linked_server *ls2;
             
-            /* this should only happen in redirect mode.. so look for the correct 
-               zombie so that we can re-use its connection */
+            /* this should only happen in redirect mode.. so look for the 
+               correct zombie so that we can re-use its connection to the UO
+               server. */
             list_for_each_entry(c, &instance->connections, siblings) {
                 list_for_each_entry(ls2, &c->servers, siblings) {            
                     if (ls2->is_zombie
@@ -466,30 +468,33 @@ handle_game_login(struct linked_server *ls,
                 
                 connection_server_add(reuse_conn, ls);                        
             } else {            
-                /* houston, we have a problem -- reject the game login -- too slow or a hack 
-                   (wrong password) */
-                log(2, "could not find previous connection for redirected client --"
-                       " disconnecting client!\n");                
+                /* houston, we have a problem -- reject the game login -- it 
+                   either came in too slowly (and so we already reaped the
+                   zombie) or it was a hack attempt (wrong password) */
+                log(2, "could not find previous connection for redirected client"
+                       " -- disconnecting client!\n");                
                 return PA_DISCONNECT;
             }
         } else
             was_attach = ls->attaching;
-        uo_server_set_compression(ls->server, true);
+        /* after GameLogin, must enable compression. */
+        uo_server_set_compression(ls->server, true); 
         ls->got_gamelogin = true;
         ls->attaching = false;
         if (c->in_game && was_attach) {
              /* already in game .. this was likely an attach connection */
             attach_send_world(c, ls);            
         } else if (ls->enqueued_charlist) {
-            uo_server_send(ls->server, ls->enqueued_charlist, htons(ls->enqueued_charlist->length));
+            uo_server_send(ls->server, ls->enqueued_charlist, 
+                           htons(ls->enqueued_charlist->length));
         }
         free(ls->enqueued_charlist), ls->enqueued_charlist = NULL;
         ls->expecting_reconnect = false;
         return PA_DROP;
     }
 
-   /* Unless we're in razor workaround mode, valid UO clients will ever sent
-      this packet as we're hiding redirects from them. */
+   /* Unless we're in razor workaround mode, valid UO clients will never send
+      this packet since we're hiding redirects from them. */
     return PA_DISCONNECT;
 }
 
@@ -507,7 +512,8 @@ handle_play_character(struct linked_server *ls,
 }
 
 
-static void redirect_to_self(struct linked_server *ls, struct connection *c __attr_unused) 
+static void redirect_to_self(struct linked_server *ls, 
+                             struct connection *c __attr_unused) 
 {
     struct uo_packet_relay relay;
     static uint32_t authid = 0;
@@ -607,9 +613,11 @@ handle_play_server(struct linked_server *ls,
     
     
     if (c->instance->config->razor_workaround) {
-        /* razor workaround -> send the redirect packet to the client and tell them to redirect to self! 
-           note: do we need to keep the connection around after the client closes it for a number of seconds
-           to allow the redirect to take effect and so that we don't close the server connection?? */
+        /* Razor workaround -> send the redirect packet to the client and tell 
+           them to redirect to self!  This is because Razor refuses to work if 
+           it doesn't see a redirect packet.  Note that after the redirect, 
+           the client immediately sends 'GameLogin' which means we turn 
+           compression on. */
         redirect_to_self(ls, c);
     }
     
