@@ -272,6 +272,7 @@ static inline void list_splice_init(struct list_head *list,
 	}
 }
 
+
 /**
  * list_entry - get the struct for this entry
  * @ptr:	the &struct list_head pointer.
@@ -279,7 +280,7 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_entry(ptr, type, member) \
-	((type*)ptr)
+	((type *)ptr)
 
 /**
  * list_first_entry - get the first element from a list

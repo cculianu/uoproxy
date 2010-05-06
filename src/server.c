@@ -257,6 +257,10 @@ uint32_t uo_server_seed(const struct uo_server *server) {
     return server->seed;
 }
 
+void uo_server_set_compression(struct uo_server *server, bool comp) {
+    server->compression_enabled = comp;
+}
+
 void
 uo_server_set_protocol(struct uo_server *server,
                        enum protocol_version protocol_version)
@@ -264,6 +268,16 @@ uo_server_set_protocol(struct uo_server *server,
     assert(server->protocol_version == PROTOCOL_UNKNOWN);
 
     server->protocol_version = protocol_version;
+}
+
+uint32_t uo_server_getsockname(const struct uo_server *server)
+{
+    return sock_buff_sockname(server->sock);
+}
+
+uint16_t uo_server_getsockport(const struct uo_server *server)
+{
+    return sock_buff_port(server->sock);
 }
 
 void uo_server_send(struct uo_server *server,
@@ -275,7 +289,7 @@ void uo_server_send(struct uo_server *server,
     if (uo_server_is_aborted(server))
         return;
 
-    log(9, "sending packet to client, length=%u\n", (unsigned)length);
+    log(9, "sending packet to client, 0x%hhx length=%u\n", *(char *)src, (unsigned)length);
     log_hexdump(10, src, length);
 
     if (server->compression_enabled) {
@@ -284,6 +298,7 @@ void uo_server_send(struct uo_server *server,
         ssize_t nbytes;
 
         dest = sock_buff_write(server->sock, &max_length);
+            
         if (dest == NULL) {
             log(1, "output buffer full in uo_server_send()\n");
             uo_server_abort(server);

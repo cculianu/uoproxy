@@ -37,7 +37,8 @@ server_packet(const void *data, size_t length, void *ctx)
     packet_action_t action;
 
     assert(c != NULL);
-
+    assert(!ls->is_zombie);
+    
     action = handle_packet_from_client(client_packet_bindings,
                                        ls, data, length);
     switch (action) {
@@ -82,7 +83,10 @@ server_free(void *ctx)
 
     connection_walk_server_removed(&c->walk, ls);
 
-    if (ls->siblings.next != &c->servers || ls->siblings.prev != &c->servers) {
+    if (ls->expecting_reconnect) {
+        log(2, "client disconnected, zombifying server connection for 5 seconds\n");
+        connection_server_zombify(c, ls);
+    } else if (ls->siblings.next != &c->servers || ls->siblings.prev != &c->servers) {
         log(2, "client disconnected, server connection still in use\n");
         connection_server_dispose(c, ls);
     } else if (c->background && c->in_game) {
@@ -131,7 +135,7 @@ connection_server_new(struct connection *c, int fd)
     ls = calloc(1, sizeof(*ls));
     if (ls == NULL)
         return NULL;
-
+    
     ret = uo_server_create(fd,
                            &server_handler, ls,
                            &ls->server);
@@ -143,6 +147,31 @@ connection_server_new(struct connection *c, int fd)
 
     connection_server_add(c, ls);
     return ls;
+}
+
+static void 
+zombie_timeout_event_callback(int fd __attr_unused,
+                              short event __attr_unused,
+                              void *ctx) 
+{
+    struct linked_server *ls = (struct linked_server *)ctx;
+    ls->expecting_reconnect = false;
+    server_free(ls);
+}
+
+void 
+connection_server_zombify(struct connection *c, struct linked_server *ls) 
+{
+    struct timeval tv;
+    connection_check(c);
+    assert(ls != NULL);
+    assert(c == ls->connection);
+    
+    ls->is_zombie = true;
+    evtimer_set(&ls->zombie_timeout, zombie_timeout_event_callback, ls);
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    evtimer_add(&ls->zombie_timeout, &tv);
 }
 
 void

@@ -40,8 +40,7 @@ struct instance {
     struct event server_socket_event;
 
     struct list_head connections;
-    struct relay_list *relays;
-
+    
     struct timeval tv;
 };
 

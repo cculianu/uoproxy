@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 static void
 deinit_signals(struct instance *instance)
 {
@@ -90,6 +91,7 @@ static void config_get(struct config *config, int argc, char **argv) {
         config_read_file(config, "/etc/uoproxy.conf");
 
     parse_cmdline(config, argc, argv);
+    
 }
 
 static void

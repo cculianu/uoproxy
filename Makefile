@@ -2,18 +2,18 @@
 # (c) 2005-2010 Max Kellermann <max@duempel.org>
 
 CC := gcc
-PREFIX = /usr/local
+PREFIX = /opt/local
 
 # change this value to 'yes' to enable the debugging version
-DEBUG = no
+DEBUG = yes
 
-LDFLAGS += -levent
+LDFLAGS += -L/opt/local/lib -levent
 
 ifeq ($(DEBUG),yes)
-CFLAGS += -g -O0
+CFLAGS += -g -O0 -I/opt/local/include
 LDFLAGS += -g -O0
 else
-CFLAGS += -O3 -DNDEBUG=1
+CFLAGS += -O3 -DNDEBUG=1 -I/opt/local/include
 LDFLAGS += -O3
 endif
 
@@ -21,7 +21,7 @@ endif
 #FEATURE_CFLAGS += -DDUMP_USE
 
 ifeq ($(DEBUG),yes)
-WARNING_CFLAGS += -W -Wall -std=gnu99 -Wmissing-prototypes -Wwrite-strings -Wcast-qual -Wfloat-equal -Wshadow -Wpointer-arith -Wbad-function-cast -Wsign-compare -Waggregate-return -Wmissing-declarations -Wmissing-noreturn -Wmissing-format-attribute -Wredundant-decls -Wnested-externs -Winline -Wdisabled-optimization -Wno-long-long -Wstrict-prototypes -Wundef -pedantic-errors -Werror
+WARNING_CFLAGS += -W -Wall -std=gnu99 -Wmissing-prototypes -Wwrite-strings -Wcast-qual -Wfloat-equal -Wshadow -Wpointer-arith -Wbad-function-cast -Wsign-compare -Waggregate-return -Wmissing-declarations -Wmissing-noreturn -Wmissing-format-attribute -Wredundant-decls -Wnested-externs -Winline -Wdisabled-optimization -Wno-long-long -Wstrict-prototypes -Wundef -pedantic-errors 
 else
 WARNING_CFLAGS += -std=gnu99
 endif
