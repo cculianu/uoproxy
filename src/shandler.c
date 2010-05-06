@@ -44,7 +44,8 @@ static void welcome(struct connection *c) {
     list_for_each_entry(ls, &c->servers, siblings) {
         if (!ls->attaching && !ls->is_zombie && !ls->welcome) {
             uo_server_speak_console(ls->server, "Welcome to uoproxy v" VERSION "!  "
-                                    "http://max.kellermann.name/projects/uoproxy/");
+                                    "http://max.kellermann.name/projects/uoproxy/"
+                                    "\nSay % for a list of commands");
             ls->welcome = true;
         }
     }
@@ -465,17 +466,15 @@ static packet_action_t handle_char_list(struct connection *c,
         /* razor workaround -- we don't send the char list right away necessarily until they sent us GameLogin.. */
         struct linked_server *ls;
         list_for_each_entry(ls, &c->servers, siblings) {
-            if (!ls->attaching && !ls->is_zombie) {
-                if (ls->got_gamelogin)
-                    uo_server_send(ls->server, data, length);
-                else {
-                    if (ls->enqueued_charlist) free(ls->enqueued_charlist);
-                    ls->enqueued_charlist = calloc(1,length);
-                    if (ls->enqueued_charlist) {
-                        memcpy(ls->enqueued_charlist, data, length);
-                    } else
-                        log_oom();
-                }
+            if (ls->got_gamelogin && !ls->attaching && !ls->is_zombie)
+                uo_server_send(ls->server, data, length);
+            else {
+                if (ls->enqueued_charlist) free(ls->enqueued_charlist);
+                ls->enqueued_charlist = calloc(1,length);
+                if (ls->enqueued_charlist) {
+                    memcpy(ls->enqueued_charlist, data, length);
+                } else
+                    log_oom();
             }
         }
         return PA_DROP;

@@ -424,7 +424,7 @@ handle_game_login(struct linked_server *ls,
         
         log(2,"game login from client\n");
         
-        /* I have observed the razor client ignoring the redirect if the IP 
+        /* I have observed the Razor client ignoring the redirect if the IP 
            address differs from what it connected to.  (I guess this is a bug in 
            RunUO & Razor).  In that case it does a gamelogin on the old 
            linked_server without reconnecting to us. 
